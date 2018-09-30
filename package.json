@@ -1,0 +1,19 @@
+{
+  "name": "odo-journal",
+  "version": "1.0.0",
+  "description": "Distributed, p2p, append-only event streaming journal",
+  "main": "index.js",
+  "repository": "git@github.com:odojs/odo-journal.git",
+  "author": "Thomas Coats <github@voodoolabs.net>",
+  "license": "MIT",
+  "dependencies": {
+    "discovery-channel": "^5.5.1",
+    "lexicographic-integer": "^1.1.0",
+    "pump": "^3.0.0",
+    "through2": "^2.0.3"
+  },
+  "devDependencies": {
+    "level-mem": "^3.0.1",
+    "subleveldown": "^3.0.1"
+  }
+}
