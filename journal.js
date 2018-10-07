@@ -116,6 +116,7 @@ module.exports = (opts) => {
           return
         }
 
+        snapsnot.id = id
         journals[id].snapshotseq = snapshot.to
         live.emit('journal.ready', info)
 
@@ -143,6 +144,37 @@ module.exports = (opts) => {
       if (index > -1) subscriptions[id].splice(index, 1)
     }
     return live
+  }
+  result.firehose = () => {
+    const firehose = new EventEmitter()
+
+    const livesubscriptions = {}
+
+    const subscribe = (id) => {
+      if (livesubscriptions[id]) return
+      const subscription = result.live({ id: id })
+      subscription.on('journal.ready', (info) => {
+        firehose.emit('journal.ready', info)
+      })
+      subscription.on('journal.restoresnapshot', (snapshot) => {
+        firehose.emit('journal.restoresnapshot', snapshot)
+      })
+      subscription.on('journal.events', (events) => {
+        firehose.emit('journal.events', events)
+      })
+      livesubscriptions[id] = subscription
+    }
+
+    result.on('journal.append', (e) => subscribe(e.id))
+    result.on('journal.newsnapshot', (e) => subscribe(e.id))
+    result.list((err, journals) => journals.forEach((j) => subscribe(j.id)))
+    firehose.close = () => {
+      for (let id of Object.keys(livesubscriptions)) {
+        livesubscriptions[id].close()
+        delete livesubscriptions[id]
+      }
+    }
+    return firehose
   }
   result.toJSON = () => Object.values(journals)
 

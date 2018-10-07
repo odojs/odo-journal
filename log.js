@@ -184,8 +184,10 @@ module.exports = (db, opts) => {
         .on('data', (data) => {
           seq = data.seq
           events.push(data)
-          if (events.length > 1000) cb(events)
-          events = []
+          if (events.length > 1000) {
+            cb(events)
+            events = []
+          }
         })
         .on('end', () => {
           if (!issubscribed) return

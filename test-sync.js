@@ -14,6 +14,13 @@ const snapshots1 = sub(db1, 'snapshot.', {
   valueEncoding: 'utf8'
 })
 const journals1 = journalup({ logs: logs1, snapshots: snapshots1 })
+const process = (e, p) => {
+  console.log(e, p)
+}
+const firehose = journals1.firehose()
+firehose.on('journal.restoresnapshot', (e) => process(e.e, e.p))
+firehose.on('journal.events', (events) =>
+  events.forEach((e) => process(e.event.e, e.event.p)))
 journals1.append('server1', [
   { e: 'test event', p: { id: 1, name: 'bob' } },
   { e: 'test event', p: { id: 2, name: 'nancy' } },
@@ -31,9 +38,9 @@ journals1.append('server1', [
     ca: [ fs.readFileSync('./cert.pem') ]
   })
   server1.on('swarm.connection', (peer) => { sync1.add(peer) })
-  setInterval(() => {
-    console.log('server1 has', Object.values(sync1.toJSON()).map((v) => v.peers))
-  }, 2000)
+  // setInterval(() => {
+  //   console.log('server1 has', Object.values(sync1.toJSON()).map((v) => v.peers))
+  // }, 2000)
 })
 
 

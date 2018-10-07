@@ -198,7 +198,8 @@ module.exports = (opts) => {
         }
         for (let e of Object.values(sets))
           if (e.events.length > 0)
-            journalup.append(e.id, e.events)
+            // need to unwrap the event
+            journalup.append(e.id, e.events.map((e) => e.event))
       })
       peer.on('sync.newsnapshot', (s) => {
         if (mylist[s.id] && mylist[s.id].to > s.snapshot.to) return
