@@ -29,7 +29,7 @@ module.exports = (db, opts) => {
           result[id] = { id: id, to: to }
           found = id
         })
-        .on('error', (err) => cb)
+        .on('error', cb)
         .on('end', () => {
           if (!found) {
             logs = result
@@ -43,7 +43,7 @@ module.exports = (db, opts) => {
               const from = lexint.unpack(data.slice(data.lastIndexOf(sep) + 1), 'hex')
               result[found].from = from
             })
-            .on('error', (err) => cb)
+            .on('error', cb)
             .on('end', () => {
               end = key(found, 0)
               found = false
