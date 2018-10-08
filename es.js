@@ -9,6 +9,7 @@ module.exports = (db, opts) => {
   const end = (store) => `${prefix}${store}${sep}\xff`
 
   const loadall = (keys, cb) => {
+    const now = Date.now()
     const result = {}
     let index = 0
     const iterate = () => {
@@ -18,6 +19,10 @@ module.exports = (db, opts) => {
         try {
           if (!err) data = JSON.parse(value.toString('utf8'))
           else if (err.type != 'NotFoundError') return cb(err)
+          if (data && data.ttl && data.ttl < now) {
+            data = null
+            db.del(keys[index])
+          }
         } catch (err) {
           return cb(err)
         }
@@ -31,18 +36,21 @@ module.exports = (db, opts) => {
 
   return {
     get: (store, id, cb) => {
+      const now = Date.now()
       db.get(key(store, id), (err, value) => {
         let data = null
         try {
           if (!err) data = JSON.parse(value.toString('utf8'))
           else if (err.type != 'NotFoundError') return cb(err)
+          if (data && data.ttl && data.ttl < now) db.del(key(store, id))
+          else cb(null, data)
         } catch (err) {
           return cb(err)
         }
-        cb(null, data)
       })
     },
     all: (store, cb) => {
+      const now = Date.now()
       const result = {}
       db
         .createReadStream({ gt: start(store), lt: end(store) })
@@ -52,8 +60,9 @@ module.exports = (db, opts) => {
           let value = null
           try {
             value = JSON.parse(data.value.toString('utf8'))
+            if (value && value.ttl && value.ttl < now) db.del(data.key)
+            else result[id] = value
           } catch (err) { }
-          result[id] = value
         })
         .on('error', cb)
         .on('end', () => {
