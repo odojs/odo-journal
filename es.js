@@ -70,6 +70,7 @@ module.exports = (db, opts) => {
         })
     },
     batch: (ops, cb) => {
+      const now = Date.now()
       const deletes = {}
       const puts = {}
       let index = ops.length
@@ -77,14 +78,10 @@ module.exports = (db, opts) => {
       {
         const op = ops[index]
         const k = key(op.store, op.id)
-        if (deletes[k])
-          ops[index] = null
-        else if (op.type == 'del')
-          deletes[k] = true
-        else if (puts[k])
-          puts[k] = Object.assign(op.value, puts[k])
-        else
-          puts[k] = op.value
+        if (deletes[k]) ops[index] = null
+        else if (op.type == 'del' || op.value.ttl < now) deletes[k] = true
+        else if (puts[k]) puts[k] = Object.assign(op.value, puts[k])
+        else puts[k] = op.value
       }
       loadall(Object.keys(puts), (err, results) => {
         if (err != null) return cb(err)
