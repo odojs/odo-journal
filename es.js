@@ -80,7 +80,12 @@ module.exports = (db, opts) => {
         const k = key(op.store, op.id)
         if (deletes[k]) ops[index] = null
         else if (op.type == 'del' || op.value.ttl < now) deletes[k] = true
-        else if (puts[k]) puts[k] = Object.assign(op.value, puts[k])
+        else if (puts[k]) {
+          if (op.value.rev && puts[k].rev && puts[k].rev < op.value.rev)
+            puts[k] = op.value
+          else
+            puts[k] = Object.assign(op.value, puts[k])
+        }
         else puts[k] = op.value
       }
       loadall(Object.keys(puts), (err, results) => {
@@ -89,14 +94,16 @@ module.exports = (db, opts) => {
           delete deletes[k]
           const result = results[k]
           if (!result) continue
-          puts[k] = Object.assign(result, puts[k])
+          if (result.rev && puts[k].rev && puts[k].rev < result.rev)
+            delete puts[k]
+          else
+            puts[k] = Object.assign(result, puts[k])
         }
         ops = []
         for (let k of Object.keys(deletes))
           ops.push({ type: 'del', key: k })
         for (let k of Object.keys(puts))
           ops.push({ type: 'put', key: k, value: JSON.stringify(puts[k]) })
-        console.log(ops)
         db.batch(ops, cb)
       })
     }
