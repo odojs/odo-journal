@@ -23,12 +23,12 @@ module.exports = (db, opts) => {
             data = null
             db.del(keys[index])
           }
+          result[keys[index]] = data
+          index++
+          iterate()
         } catch (err) {
           return cb(err)
         }
-        result[keys[index]] = data
-        index++
-        iterate()
       })
     }
     iterate()
