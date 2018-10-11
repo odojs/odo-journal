@@ -124,7 +124,8 @@ module.exports.diff = (store, source, target) => {
     for (let key of Object.keys(t))
       if (!s[key]) d[key] = t[key]
       else if (!equal(s[key], t[key])) d[key] = t[key]
-    ops.push({ type: 'put', store: store, id: id, value: d })
+    if (Object.keys(d) > 0)
+      ops.push({ type: 'put', store: store, id: id, value: d })
   }
   for (let id of Object.keys(target)) if (!source[id])
     ops.push({ type: 'add', store: store, id: id, value: target[id] })
