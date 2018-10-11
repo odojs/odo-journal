@@ -1,3 +1,5 @@
+const equal = require('fast-deep-equal')
+
 module.exports = (db, opts) => {
   if (opts == null) opts = {}
 
@@ -121,7 +123,7 @@ module.exports.diff = (store, source, target) => {
       if (!t[key]) d[key] = null
     for (let key of Object.keys(t))
       if (!s[key]) d[key] = t[key]
-      else if (s[key] !== t[key]) d[key] = t[key]
+      else if (!equal(s[key], t[key])) d[key] = t[key]
     ops.push({ type: 'put', store: store, id: id, value: d })
   }
   for (let id of Object.keys(target)) if (!source[id])
