@@ -135,3 +135,8 @@ module.exports.diff = (store, source, target) => {
     ops.push({ type: 'add', store: store, id: id, value: target[id] })
   return ops
 }
+module.exports.summarise = (ops) => {
+  const counts = { put: 0, add: 0, del: 0 }
+  for (let op of ops) counts[op.type]++
+  return `${counts['add']} add, ${counts['put']} put, ${counts['del']} del`
+}
