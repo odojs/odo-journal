@@ -35,21 +35,21 @@ module.exports = (db, opts) => {
   }
 
   return {
-    get: (store, id, cb) => {
+    get: (store, id) => new Promise((resolve, reject) => {
       const now = Date.now()
       db.get(key(store, id), (err, value) => {
         let data = null
         try {
           if (!err) data = JSON.parse(value.toString('utf8'))
-          else if (err.type != 'NotFoundError') return cb(err)
+          else if (err.type != 'NotFoundError') return resolve(err)
           if (data && data.ttl && data.ttl < now) db.del(key(store, id))
-          else cb(null, data)
+          else resolve(data)
         } catch (err) {
-          return cb(err)
+          return reject(err)
         }
       })
-    },
-    all: (store, cb) => {
+    }),
+    all: (store) => new Promise((resolve, reject) => {
       const now = Date.now()
       const result = {}
       db
@@ -64,12 +64,10 @@ module.exports = (db, opts) => {
             else result[id] = value
           } catch (err) { }
         })
-        .on('error', cb)
-        .on('end', () => {
-          cb(null, result)
-        })
-    },
-    batch: (ops, cb) => {
+        .on('error', reject)
+        .on('end', () => resolve(result))
+    }),
+    batch: (ops) => new Promise((resolve, reject) => {
       const now = Date.now()
       const deletes = {}
       const puts = {}
@@ -89,7 +87,7 @@ module.exports = (db, opts) => {
         else puts[k] = op.value
       }
       loadall(Object.keys(puts), (err, results) => {
-        if (err != null) return cb(err)
+        if (err != null) return reject(err)
         for (let k of Object.keys(results)) {
           delete deletes[k]
           const result = results[k]
@@ -104,8 +102,8 @@ module.exports = (db, opts) => {
           ops.push({ type: 'del', key: k })
         for (let k of Object.keys(puts))
           ops.push({ type: 'put', key: k, value: JSON.stringify(puts[k]) })
-        db.batch(ops, cb)
+        resolve(db.batch(ops))
       })
-    }
+    })
   }
 }
