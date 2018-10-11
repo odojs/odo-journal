@@ -13,6 +13,7 @@ module.exports = (opts) => {
     for (let j of journals) {
       mylist[j.id] = j
       if (!directory[j.id]) directory[j.id] = {
+        id: j.id,
         peers: {},
         self: j,
         isself: false
