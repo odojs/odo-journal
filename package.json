@@ -1,6 +1,6 @@
 {
   "name": "odo-journal",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Distributed, p2p, append-only event streaming journal",
   "main": "index.js",
   "repository": "git@github.com:odojs/odo-journal.git",
