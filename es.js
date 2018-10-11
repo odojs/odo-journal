@@ -69,7 +69,7 @@ module.exports = (db, opts) => {
         .on('error', reject)
         .on('end', () => resolve(result))
     }),
-    batch: (ops) => new Promise((resolve, reject) => {
+    batch: (ops, seq) => new Promise((resolve, reject) => {
       const now = Date.now()
       const deletes = {}
       const puts = {}
@@ -104,6 +104,10 @@ module.exports = (db, opts) => {
           dbops.push({ type: 'del', key: k })
         for (let k of Object.keys(puts))
           dbops.push({ type: 'put', key: k, value: JSON.stringify(puts[k]) })
+        if (dbops.length == 0) return resolve(ops)
+        if (seq) for (let id of Object.keys(seq))
+          dbops.push({ type: 'put', key: key('__seq', id),
+            value: JSON.stringify({ seq: seq[id] }) })
         db.batch(dbops).then(() => resolve(ops))
       })
     })

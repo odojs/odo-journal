@@ -145,14 +145,15 @@ module.exports = (opts) => {
     }
     return live
   }
-  result.firehose = () => {
+  result.firehose = (seq) => {
     const firehose = new EventEmitter()
 
     const livesubscriptions = {}
 
     const subscribe = (id) => {
       if (livesubscriptions[id]) return
-      const subscription = result.live({ id: id })
+      const from = seq && seq[id] ? seq[id] : 1
+      const subscription = result.live({ id: id, from: from })
       subscription.on('journal.ready', (info) => {
         firehose.emit('journal.ready', info)
       })
