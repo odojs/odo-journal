@@ -163,6 +163,7 @@ module.exports = (opts) => {
             peer.write('sync.restoresnapshot', { id: journal.id, snapshot: s })
           })
           .on('journal.events', (events) => {
+            //console.log(`${opts.id} -> ${peer.id}`, events)
             peer.write('sync.events', events)
           })
           .on('journal.newsnapshot', (s) => {

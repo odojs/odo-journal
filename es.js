@@ -96,14 +96,16 @@ module.exports = (db, opts) => {
           if (!result) continue
           if (result.rev && puts[k].rev && puts[k].rev < result.rev)
             delete puts[k]
-          else
-            puts[k] = Object.assign(result, puts[k])
+          else puts[k] = Object.assign(result, puts[k])
         }
         const dbops = []
         for (let k of Object.keys(deletes))
           dbops.push({ type: 'del', key: k })
-        for (let k of Object.keys(puts))
+        for (let k of Object.keys(puts)) {
+          for (let key of Object.keys(puts[k]))
+            if (puts[k][key] == null) delete puts[k][key]
           dbops.push({ type: 'put', key: k, value: JSON.stringify(puts[k]) })
+        }
         if (dbops.length == 0) return resolve(ops)
         if (seq) for (let id of Object.keys(seq))
           dbops.push({ type: 'put', key: key('__seq', id),
