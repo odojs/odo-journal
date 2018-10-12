@@ -95,12 +95,19 @@ module.exports = (options, cb) => {
 
     const socket = tls.connect(clientoptions, () => { peer.activity = Date.now() })
     socket.setEncoding('utf8')
+    let backlog = ''
     socket.on('data', (data) => {
-      const payload = JSON.parse(data)
-      peer.activity = Date.now()
-      //console.log(`client ${peer.id || peer.key} -> ${options.id} received`, payload)
-      peer.emit('event', payload)
-      peer.emit(payload.e, payload.p)
+      backlog += data
+      let index = backlog.indexOf('\n')
+      while (index != -1) {
+        const payload = JSON.parse(backlog.substring(0, index))
+        backlog = backlog.substring(index + 1)
+        index = backlog.indexOf('\n')
+        peer.activity = Date.now()
+        //console.log(`client ${peer.id || peer.key} -> ${options.id} received`, payload)
+        peer.emit('event', payload)
+        peer.emit(payload.e, payload.p)
+      }
     })
     socket.on('close', () => {
       sendtolifesupport(peer, 'outgoing connection closed')
@@ -185,7 +192,7 @@ module.exports = (options, cb) => {
         return
       }
       //console.log(`client ${options.id} -> ${peer.id || peer.key} sent`, { e: event, p: payload })
-      peer.socket.write(JSON.stringify({ e: event, p: payload }))
+      peer.socket.write(JSON.stringify({ e: event, p: payload }) + '\n')
     }
     if (peersbykey[peer.key] != null) return
     peersbykey[peer.key] = peer
@@ -227,7 +234,7 @@ module.exports = (options, cb) => {
         return
       }
       //console.log(`server ${options.id} -> ${peer.id || peer.key} sent`, { e: event, p: payload })
-      socket.write(JSON.stringify({ e: event, p: payload }))
+      socket.write(JSON.stringify({ e: event, p: payload }) + '\n')
     }
     peer.on('swarm.iamfine', (data) => {
       peer.id = data.id
@@ -259,12 +266,19 @@ module.exports = (options, cb) => {
     //console.log(`server ${options.id} -> ${peer.key} sending how are you`)
     peer.write('swarm.howareyou', { id: options.id })
     socket.setEncoding('utf8')
+    let backlog = ''
     socket.on('data', (data) => {
-      const payload = JSON.parse(data)
-      peer.activity = Date.now()
-      //console.log(`server ${peer.id || peer.key} -> ${options.id} received`, payload)
-      peer.emit('event', payload)
-      peer.emit(payload.e, payload.p)
+      backlog += data
+      let index = backlog.indexOf('\n')
+      while (index != -1) {
+        const payload = JSON.parse(backlog.substring(0, index))
+        backlog = backlog.substring(index + 1)
+        index = backlog.indexOf('\n')
+        peer.activity = Date.now()
+        //console.log(`server ${peer.id || peer.key} -> ${options.id} received`, payload)
+        peer.emit('event', payload)
+        peer.emit(payload.e, payload.p)
+      }
     })
   })
   server.on('error', (err) => { result.emit('error', err) })
