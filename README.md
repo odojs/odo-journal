@@ -2,6 +2,10 @@
 
 Distributed, p2p, append-only event streaming journal
 
+# Todo
+
+[ ] Upgrade to promises
+
 Relies on leveldown style storage
 
 # Generate self signed key

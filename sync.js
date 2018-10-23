@@ -1,14 +1,13 @@
+const seuss = require('seuss-queue')
+
 module.exports = (opts) => {
   const journalup = opts.journals
+  const peers = {} // connected peers
+  const directory = {} // all known journals
+  const mylist = {} // my current state of journals
+  const mutex = {} // lock journals during sync
+  const incoming = {} // queue of event syncs
 
-  // track connected peers
-  const peers = {}
-
-  // track all known journals
-  const directory = {}
-
-  // track my current state of journals
-  const mylist = {}
   journalup.list((err, journals) => {
     for (let j of journals) {
       mylist[j.id] = j
@@ -66,10 +65,9 @@ module.exports = (opts) => {
     let to = 0
     let result = null
     for (let peer of Object.values(peers)) {
-      if (peer.to > to) {
-        to = peer.to
-        result = peer
-      }
+      if (peer.to <= to) return
+      to = peer.to
+      result = peer
     }
     return result
   }
@@ -102,8 +100,7 @@ module.exports = (opts) => {
       switch (e.op) {
       case 'remove':
         directory[e.journal].subscribedto = null
-        if (!peers[e.peer] || !peers[e.peer].incoming[e.journal])
-          continue
+        if (!peers[e.peer] || !peers[e.peer].incoming[e.journal]) continue
         delete peers[e.peer].incoming[e.journal]
         peers[e.peer].peer.write('sync.unsubscribe', { id: e.journal })
         break
@@ -118,14 +115,45 @@ module.exports = (opts) => {
 
   setInterval(evaluate, 10000)
 
+  const enqueue = (id, events) => {
+    if (!incoming[id]) incoming[id] = seuss()
+    incoming[id].enqueue(() => new Promise((resolve, reject) => {
+      let min = +Infinity
+      let max = -Infinity
+      events.forEach(e => {
+        if (e.seq < min) min = e.seq
+        if (e.seq > max) max = e.seq
+      })
+      //console.log(id, `syncing ${min} -> ${max}`)
+      journalup.append(id, events.map((e) => e.event), (err) => {
+        if (err) return reject()
+        resolve()
+      })
+    }))
+  }
+
+  const drain = () => {
+    for (let id of Object.keys(incoming)) {
+      const q = incoming[id]
+      if (q.length() == 0 || mutex[id]) continue
+      mutex[id] = true
+      q.dequeue()()
+        .then(() => {
+          delete mutex[id]
+          drain()
+        })
+        .catch((err) => {
+          console.error(err)
+          delete mutex[id]
+          drain()
+        })
+    }
+  }
+
   return {
     add: (peer) => {
       peer.on('swarm.ready', () => {
-        peers[peer.id] = {
-          peer: peer,
-          incoming: {},
-          outgoing: {}
-        }
+        peers[peer.id] = { peer: peer, incoming: {}, outgoing: {} }
         peer.write('sync.requestjournals')
       })
       peer.on('swarm.disconnect', (reason) => {
@@ -134,9 +162,8 @@ module.exports = (opts) => {
             subscription.close()
           delete peers[peer.id]
         }
-        for (let journal of Object.values(directory)) {
+        for (let journal of Object.values(directory))
           delete journal.peers[peer.id]
-        }
         evaluate()
       })
       peer.on('sync.requestjournals', (e) => {
@@ -199,9 +226,8 @@ module.exports = (opts) => {
           }
         }
         for (let e of Object.values(sets))
-          if (e.events.length > 0)
-            // need to unwrap the event
-            journalup.append(e.id, e.events.map((e) => e.event))
+          if (e.events.length > 0) enqueue(e.id, e.events)
+        drain()
       })
       peer.on('sync.newsnapshot', (s) => {
         if (mylist[s.id] && mylist[s.id].to > s.snapshot.to) return

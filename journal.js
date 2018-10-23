@@ -32,10 +32,8 @@ module.exports = (opts) => {
   })
   result.close = () => {
     for (let collection of Object.values(subscriptions))
-      for (let subscription of collection)
-        subscription.close()
-    for (let key of Object.keys(subscriptions))
-      delete subscriptions[key]
+      for (let subscription of collection) subscription.close()
+    for (let key of Object.keys(subscriptions)) delete subscriptions[key]
   }
   result.snapshot = (id, snapshot, to, cb) => {
     if (!cb) cb = () => {}
@@ -46,11 +44,11 @@ module.exports = (opts) => {
         if (err != null) return cb(err)
         info.from = to + 1
         journals[id].from = to + 1
-        result.emit('journal.newsnapshot', { id: id, snapshot: snapshot, seq: to })
-        if (subscriptions[id]) {
-          for (let subscription of subscriptions[id])
-            subscription.emit('journal.newsnapshot', { snapshot: snapshot, seq: to })
-        }
+        result.emit('journal.newsnapshot',
+          { id: id, snapshot: snapshot, seq: to })
+        if (subscriptions[id]) for (let subscription of subscriptions[id])
+          subscription.emit('journal.newsnapshot',
+            { snapshot: snapshot, seq: to })
         cb()
       })
     })
@@ -64,6 +62,7 @@ module.exports = (opts) => {
         to: 0,
         snapshotseq: null
       }
+      //console.log(id, `journaling ${journals[id].to + 1} -> ${journals[id].to + events.length}`)
       journals[id].to += events.length
       result.emit('journal.append', {
         id: id,

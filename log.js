@@ -151,6 +151,7 @@ module.exports = (db, opts) => {
       if (err != null) return cb(err)
       if (!logs[id]) logs[id] = { id: id, from: 1, to: 0 }
       const log = logs[id]
+      //console.log(id, `logging ${log.to + 1} -> ${log.to + events.length}`)
       const payloads = events.map((e) => {
         return { id: id, seq: ++log.to, event: e }
       })
