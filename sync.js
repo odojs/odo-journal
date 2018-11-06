@@ -237,12 +237,19 @@ module.exports = (opts) => {
     },
     toJSON: () => Object.keys(directory).map((key) => {
       const self = directory[key].self || {}
+      const peers = directory[key].peers
       return {
         id: key,
         from: self.from,
         to: self.to,
         snapshotseq: self.snapshotseq,
-        peers: Object.values(directory[key].peers),
+        peers: Object.keys(peers).map(peer => {
+          return {
+            id: peer,
+            from: peers[peer].from,
+            to: peers[peer].to
+          }
+        }),
         subscribedto: directory[key].subscribedto
       }
     })
