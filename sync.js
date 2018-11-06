@@ -64,9 +64,9 @@ module.exports = (opts) => {
   const bestpeer = (peers) => {
     let to = 0
     let result = null
-    for (let peer of Object.values(peers)) {
-      if (peer.to <= to) return
-      to = peer.to
+    for (let peer of Object.keys(peers)) {
+      if (peers[peer].to <= to) return
+      to = peers[peer].to
       result = peer
     }
     return result
@@ -87,14 +87,14 @@ module.exports = (opts) => {
       // A peer to subscribe to. We subscribe even if they are behind.
       const from = j.self ? j.self.to + 1 : 1
       if (j.subscribedto) {
-        if (j.subscribedto != peer.id) {
+        if (j.subscribedto != peer) {
           plan.push({ op: 'remove', journal: j.id, peer: j.subscribedto })
-          plan.push({ op: 'add', journal: j.id, peer: peer.id, from: from })
+          plan.push({ op: 'add', journal: j.id, peer: peer, from: from })
         }
         continue
       }
 
-      plan.push({ op: 'add', journal: j.id, peer: peer.id, from: from })
+      plan.push({ op: 'add', journal: j.id, peer: peer, from: from })
     }
     for (let e of plan) {
       switch (e.op) {
