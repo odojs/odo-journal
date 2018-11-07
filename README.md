@@ -4,7 +4,8 @@ Distributed, p2p, append-only event streaming journal
 
 # Todo
 
-[ ] Upgrade to promises
+- [ ] Upgrade to promises
+- [ ] Peers of current journal become out of date
 
 Relies on leveldown style storage
 

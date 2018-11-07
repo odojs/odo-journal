@@ -198,6 +198,18 @@ module.exports = (options, cb) => {
     peersbykey[peer.key] = peer
     connect(peer)
   }
+  result.remove = (host, port) => {
+    const key = `${host}:${port}`
+    if (!peersbykey[key]) return
+    const peer = peersbykey[key]
+    switch (peer.state) {
+      case 'active':
+        sendtolifesupport(peer, 'removed by api')
+      case 'lifesupport':
+        deletepeer(peer, 'removed by api')
+        break
+    }
+  }
 
   const swam = dc()
   swam.on('peer', (topic, ref, type) => result.add(ref.host, ref.port))
