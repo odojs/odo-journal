@@ -24,16 +24,16 @@ module.exports = (options, cb) => {
   const peerhistory = {}
 
   // defaults
-  const pinginterval = options.pinginterval != null
+  const pinginterval = options.pinginterval
     ? options.pinginterval
     : 30 * 1000 // 30s
-  const purgetimeout = options.purgetimeout != null
+  const purgetimeout = options.purgetimeout
     ? options.purgetimeout
     : 60 * 10 * 1000 // 1h
-  const tickinterval = options.tickinterval != null
+  const tickinterval = options.tickinterval
     ? options.tickinterval
     : 5000 // 5s
-  const backofftimings = options.backofftimings != null
+  const backofftimings = options.backofftimings
     ? options.backofftimings
     : [
       5 * 1000, // 5s
@@ -43,23 +43,24 @@ module.exports = (options, cb) => {
       10 * 60 * 1000, // 10m
       60 * 60 * 1000 // 1h
     ]
-  const serverhost = options.host != null ? options.host : 'localhost'
+  const serverhost = options.host ? options.host : 'localhost'
 
   const sendtolifesupport = (peer, reason) => {
     //console.log(`${options.id} ${peer.id || peer.key} lifesupport ${reason}`)
     peer.activity = Date.now()
-    peer.state = 'lifesupport'
     peer.reason = reason
-    if (peer.socket != null) {
+    if (peer.socket) {
       peer.socket.end()
       peer.socket.destroy()
       peer.socket = null
     }
-    if (activepeers[peer.id] != null) {
+    if (peer.id && activepeers[peer.id] && activepeers[peer.id].key == peer.key) {
+      //console.log(`👎 ${peer.key} (${peer.id}) — ${reason}`)
       delete activepeers[peer.id]
       peerhistory[peer.id].activity = peer.activity
-      peer.emit('swarm.disconnect', reason)
     }
+    peer.state = 'lifesupport'
+    peer.emit('swarm.disconnect', reason)
     peer.removeAllListeners()
   }
 
@@ -67,17 +68,18 @@ module.exports = (options, cb) => {
     //console.log(`${options.id} ${peer.id || peer.key} deleted ${reason}`)
     peer.state = 'deleted'
     peer.reason = reason
-    if (peersbykey[peer.key] != null) delete peersbykey[peer.key]
-    if (peer.socket != null) {
+    if (peersbykey[peer.key]) delete peersbykey[peer.key]
+    if (peer.socket) {
       peer.socket.end()
       peer.socket.destroy()
       peer.socket = null
     }
-    if (peer.id != null && activepeers[peer.id] != null) {
+    if (peer.id && activepeers[peer.id] && activepeers[peer.id].key == peer.key) {
+      console.log(`👎 ${peer.key} (${peer.id}) — ${reason}`)
       delete activepeers[peer.id]
       peerhistory[peer.id].activity = peer.activity
-      peer.emit('swarm.disconnect', reason)
     }
+    peer.emit('swarm.disconnect', reason)
     peer.removeAllListeners()
   }
 
@@ -117,7 +119,7 @@ module.exports = (options, cb) => {
     peer.on('swarm.howareyou', (data) => {
       if (data.id == options.id)
         return sendtolifesupport(peer, 'outgoing connection detected to self')
-      if (activepeers[data.id] != null) {
+      if (activepeers[data.id]) {
         peer.write('swarm.iamalreadyconnected')
         return sendtolifesupport(peer, 'duplicate outgoing connection')
       }
@@ -130,6 +132,8 @@ module.exports = (options, cb) => {
       }
       peer.state = 'active'
       peer.attempt = 1
+      //console.log(`swarm added ${peer.id} ${peer.key}`)
+      console.log(`👍 outgoing ${peer.key} ${peer.id}`)
       activepeers[peer.id] = peer
       peersbykey[peer.key] = peer
       result.emit('swarm.connection', peer)
@@ -194,7 +198,7 @@ module.exports = (options, cb) => {
       //console.log(`client ${options.id} -> ${peer.id || peer.key} sent`, { e: event, p: payload })
       peer.socket.write(JSON.stringify({ e: event, p: payload }) + '\n')
     }
-    if (peersbykey[peer.key] != null) return
+    if (peersbykey[peer.key]) return
     peersbykey[peer.key] = peer
     connect(peer)
   }
@@ -204,8 +208,8 @@ module.exports = (options, cb) => {
     deletepeer(peersbykey[key], 'removed by api')
   }
 
-  const swam = dc()
-  swam.on('peer', (topic, ref, type) => result.add(ref.host, ref.port))
+  const swarm = dc()
+  swarm.on('peer', (topic, ref, type) => result.add(ref.host, ref.port))
 
   const serverOptions = {
     key: options.key,
@@ -249,12 +253,13 @@ module.exports = (options, cb) => {
         port: peer.port,
         activity: peer.activity
       }
-      if (activepeers[peer.id] != null) {
+      if (activepeers[peer.id]) {
         peer.write('swarm.iamalreadyconnected')
         sendtolifesupport(peer, 'duplicate peer on incoming connection')
         return
       }
       peer.state = 'active'
+      //console.log(`👍 incoming ${peer.key} ${peer.id}`)
       activepeers[peer.id] = peer
       peersbykey[peer.key] = peer
       result.emit('swarm.connection', peer)
@@ -293,7 +298,7 @@ module.exports = (options, cb) => {
     const boundport = server.address().port
     result.emit('open', { host: host, port: boundport })
   })
-  server.listen(options.port, () => { swam.join(options.channel, options.port) })
+  server.listen(options.port, () => { swarm.join(options.channel, options.port) })
   result.toJSON = () => { return Object.values(peersbykey).map((peer) => {
     return {
       id: peer.id,

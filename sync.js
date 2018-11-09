@@ -111,6 +111,8 @@ module.exports = (opts) => {
         break
       }
     }
+    for (let peer of Object.values(peers))
+      peer.peer.write('sync.requestjournals')
   }
 
   setInterval(evaluate, 10000)
@@ -124,7 +126,9 @@ module.exports = (opts) => {
         if (e.seq < min) min = e.seq
         if (e.seq > max) max = e.seq
       })
-      //console.log(id, `syncing ${min} -> ${max}`)
+      //console.log(`sync append batch ${id} ${min} -> ${max}`)
+      //console.log(directory[id])
+      //console.log(events.map((e) => e.event))
       journalup.append(id, events.map((e) => e.event), (err) => {
         if (err) return reject()
         resolve()
@@ -152,11 +156,12 @@ module.exports = (opts) => {
 
   return {
     add: (peer) => {
+      peers[peer.id] = { peer: peer, incoming: {}, outgoing: {} }
       peer.on('swarm.ready', () => {
-        peers[peer.id] = { peer: peer, incoming: {}, outgoing: {} }
         peer.write('sync.requestjournals')
       })
       peer.on('swarm.disconnect', (reason) => {
+        //console.log(`sync peer disconnect ${peer.id} ${peer.key} — ${reason}`)
         if (peers[peer.id]) {
           for (let subscription of Object.values(peers[peer.id].outgoing))
             subscription.close()
@@ -183,7 +188,7 @@ module.exports = (opts) => {
         evaluate()
       })
       peer.on('sync.subscribe', (journal) => {
-        console.log(`${opts.id} subscribing ${peer.id}`, journal)
+        //console.log(`${opts.id} subscribing ${peer.id}`, journal)
         if (peers[peer.id].outgoing[journal.id]) return
         const subscription = journalup.live({ id: journal.id, from: journal.from })
           .on('journal.restoresnapshot', (s) => {
@@ -200,13 +205,13 @@ module.exports = (opts) => {
       })
       peer.on('sync.unsubscribe', (journal) => {
         if (!peers[peer.id] || !peers[peer.id].outgoing[journal.id]) return
-        console.log(`${opts.id} unsubscribing ${peer.id}`, journal)
+        //console.log(`${opts.id} unsubscribing ${peer.id}`, journal)
         peers[peer.id].outgoing[journal.id].close()
         delete peers[peer.id].outgoing[journal.id]
       })
       peer.on('sync.restoresnapshot', (s) => {x
         if (mylist[s.id] && mylist[s.id].to > s.snapshot.to) return
-        console.log(`${opts.id} restoresnapshot ${peer.id}`, journal)
+        //console.log(`${opts.id} restoresnapshot ${peer.id}`, journal)
         journalup.snapshot(s.id, s.snapshot.snapshot, s.snapshot.to)
       })
       peer.on('sync.events', (events) => {
@@ -215,10 +220,12 @@ module.exports = (opts) => {
         const sets = {}
         for (let e of events) {
           if (!peers[peer.id].incoming[e.id]) continue
-          if (!sets[e.id]) sets[e.id] = {
-            id: e.id,
-            seq: directory[e.id].self ? directory[e.id].self.to : 0,
-            events: []
+          if (!sets[e.id]) {
+            sets[e.id] = {
+              id: e.id,
+              seq: directory[e.id].self ? directory[e.id].self.to : 0,
+              events: []
+            }
           }
           if (sets[e.id].seq + 1 == e.seq) {
             sets[e.id].seq++
